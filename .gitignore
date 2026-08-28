@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.env
+
+# Django
+backend/**/migrations/__pycache__/
+db.sqlite3
+staticfiles/
+
+# Node
+node_modules/
+dist/
+frontend/.vite/
+
+# Docker
+postgres-data/
+
+# Editors
+.vscode/
+.idea/
+
+# Personal, not for the repo
+Deployment Roadmap.md
+
+# Original assignment materials (given, not authored) -- kept locally only
+Original Design and Requirements.pdf
+HighLevelArch.drawio.png
+Telemetry.drawio.png

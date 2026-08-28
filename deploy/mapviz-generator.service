@@ -1,0 +1,12 @@
+[Unit]
+Description=Map Viz Telemetry Generator
+After=mapviz-backend.service
+
+[Service]
+WorkingDirectory=/opt/mapviz/generator
+ExecStart=/opt/mapviz/generator/.venv/bin/python3 main.py
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

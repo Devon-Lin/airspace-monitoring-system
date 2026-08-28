@@ -1,0 +1,12 @@
+[Unit]
+Description=Map Viz Backend
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/mapviz/backend
+ExecStart=/opt/mapviz/backend/.venv/bin/uvicorn config.asgi:application --host 127.0.0.1 --port 8000
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
