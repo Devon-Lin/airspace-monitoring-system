@@ -47,7 +47,13 @@ async def ingest(request):
 
 
 def aircraft_detail(request, aircraft_id):
-    detail = STATE.get_aircraft_detail(aircraft_id)
+    since_param = request.GET.get('trajectory_since')
+    try:
+        trajectory_since = float(since_param) if since_param else None
+    except ValueError:
+        trajectory_since = None
+
+    detail = STATE.get_aircraft_detail(aircraft_id, trajectory_since)
     if detail is None:
         return JsonResponse({'error': 'aircraft not found'}, status=404)
     return JsonResponse(detail)

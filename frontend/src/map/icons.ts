@@ -1,8 +1,27 @@
 import L from 'leaflet';
 
+// A drone monitoring a breach sits within ~200m of its target aircraft —
+// visually right on top of it. Leaflet's default marker pane z-orders
+// markers by latitude (for a pseudo-3D "closer is in front" effect), so
+// without a dedicated pane, whichever of the two happens to sit marginally
+// further south wins clicks at random as they both move — an intermittent,
+// hard-to-reproduce "clicked the drone, got the aircraft" bug. Giving drones
+// their own pane above the default marker pane makes them always win.
+export const DRONE_PANE = 'dronePane';
+
 const AIRCRAFT_SVG = `
 <svg viewBox="0 0 24 24" width="20" height="20">
   <path d="M12 1.5 L18 20 L12 16.5 L6 20 Z" fill="currentColor" stroke="rgba(0,0,0,0.5)" stroke-width="0.75"/>
+</svg>`;
+
+const BASE_STATION_SVG = `
+<svg viewBox="0 0 24 24" width="26" height="26">
+  <path d="M12 2 L12 10" stroke="currentColor" stroke-width="2"/>
+  <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+  <path d="M7.5 8.5 a6.5 6.5 0 0 0 0 9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+  <path d="M16.5 8.5 a6.5 6.5 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+  <path d="M9.5 10.5 a3 3 0 0 0 0 5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+  <path d="M14.5 10.5 a3 3 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.6"/>
 </svg>`;
 
 const DRONE_SVG = `
@@ -38,6 +57,10 @@ export function buildAircraftIcon(color: string): L.DivIcon {
 
 export function buildDroneIcon(color: string): L.DivIcon {
   return buildIcon(DRONE_SVG, 18, color, 'rotator drone-icon');
+}
+
+export function buildBaseStationIcon(color: string): L.DivIcon {
+  return buildIcon(BASE_STATION_SVG, 26, color, 'base-station-icon');
 }
 
 /** Applies heading rotation (and optional selection emphasis) to a marker's

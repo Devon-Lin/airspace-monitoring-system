@@ -11,3 +11,9 @@ export const BASE_STATION = {
 
 export const SIMULATION_RADIUS_METERS =
   parseFloat((import.meta.env.VITE_SIMULATION_RADIUS_KM as string) || '100') * 1000;
+
+// Matches the backend's HISTORY_WINDOW_SECONDS (settings.SIMULATION) — used
+// to trim the client's accumulated trajectory the same way the backend
+// trims its own, since incremental polling (see selectionStore) only ever
+// adds new points and never hears about points the backend has aged out.
+export const HISTORY_WINDOW_SECONDS = 300;

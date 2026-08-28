@@ -7,6 +7,8 @@ design the main system components. As the components were built, both the
 components and the requirements were iterated on. The rest of this
 document is the result of that process.
 
+AI Model: Sonnet 5
+
 Scope note: "Client Spec" below refers to the Problem/Required/Extra sections (given).
 Everything from "System Requirements" onward is my own design. This document
 reviews my design against the client spec, flags places where they diverge or

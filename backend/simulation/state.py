@@ -213,17 +213,24 @@ class SimulationState:
         while history and history[0][0] < cutoff:
             history.popleft()
 
-    def get_aircraft_detail(self, aircraft_id: str) -> dict | None:
+    def get_aircraft_detail(self, aircraft_id: str, trajectory_since: float | None = None) -> dict | None:
         """Backs the click-to-inspect info panel (requirement 4): historical
         trajectory, predicted path, TTE/distance/threat, gap-in-history and
-        insufficient-history flags (requirements 4.4, 4.6)."""
+        insufficient-history flags (requirements 4.4, 4.6).
+
+        `trajectory_since` lets a polling client fetch only the trajectory
+        points appended since its last poll instead of the full up-to-5-minute
+        history every second; every other field is still returned in full
+        since none of them are large enough to matter."""
         aircraft = self.aircraft.get(aircraft_id)
         if aircraft is None:
             return None
 
         history = list(aircraft.history)
         historical_trajectory = [
-            {'timestamp': t, 'lat': lat, 'lng': lng} for t, lat, lng, _, _, _ in history
+            {'timestamp': t, 'lat': lat, 'lng': lng}
+            for t, lat, lng, _, _, _ in history
+            if trajectory_since is None or t > trajectory_since
         ]
         has_gap = any(
             b[0] - a[0] > HISTORY_GAP_THRESHOLD_SECONDS for a, b in zip(history, history[1:])

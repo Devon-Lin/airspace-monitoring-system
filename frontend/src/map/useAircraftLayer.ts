@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { useAircraftStore, type ThreatLevel } from '../state/aircraftStore';
 import { useSelectionStore } from '../state/selectionStore';
+import { useFilterStore } from '../state/filterStore';
 import { buildAircraftIcon } from './icons';
 import { aircraftAnimator } from './markerAnimator';
 import { threatColors } from '../ui/theme';
@@ -29,6 +30,18 @@ export function useAircraftLayer(map: L.Map | null) {
       return selection?.kind === 'aircraft' ? selection.id : null;
     };
 
+    const applyVisibility = () => {
+      const layerGroup = layerGroupRef.current;
+      if (!layerGroup) return;
+      const visibleThreats = useFilterStore.getState().visibleThreats;
+      markersRef.current.forEach((entry) => {
+        const shouldShow = visibleThreats.has(entry.threat);
+        const isShown = layerGroup.hasLayer(entry.marker);
+        if (shouldShow && !isShown) layerGroup.addLayer(entry.marker);
+        if (!shouldShow && isShown) layerGroup.removeLayer(entry.marker);
+      });
+    };
+
     const unsubscribeAircraft = useAircraftStore.subscribe((state) => {
       const layerGroup = layerGroupRef.current;
       if (!layerGroup) return;
@@ -48,7 +61,6 @@ export function useAircraftLayer(map: L.Map | null) {
         } else {
           const marker = L.marker([aircraft.lat, aircraft.lng], { icon: buildAircraftIcon(color) });
           marker.on('click', () => useSelectionStore.getState().selectAircraft(id));
-          marker.addTo(layerGroup);
           markers.set(id, { marker, threat: aircraft.threat_level });
         }
         aircraftAnimator.update(id, markers.get(id)!.marker, aircraft.lat, aircraft.lng, aircraft.heading_deg, id === selectedId);
@@ -61,6 +73,8 @@ export function useAircraftLayer(map: L.Map | null) {
           aircraftAnimator.remove(id);
         }
       });
+
+      applyVisibility();
     });
 
     const unsubscribeSelection = useSelectionStore.subscribe(() => {
@@ -70,9 +84,12 @@ export function useAircraftLayer(map: L.Map | null) {
       });
     });
 
+    const unsubscribeFilter = useFilterStore.subscribe(() => applyVisibility());
+
     return () => {
       unsubscribeAircraft();
       unsubscribeSelection();
+      unsubscribeFilter();
     };
   }, []);
 }

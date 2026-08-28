@@ -1,29 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { API_BASE_URL } from '../config';
+import { isWithinSimulationRadius } from './simulationBounds';
 
 const CLOSE_CLICK_THRESHOLD_PX = 12;
 const MIN_VERTICES = 3;
+const ERROR_DISPLAY_MS = 4000;
 
-function postZone(coordinates: [number, number][]) {
+function postZone(coordinates: [number, number][], onError: (message: string) => void) {
   fetch(`${API_BASE_URL}/zones/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ coordinates }),
-  }).then(async (response) => {
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      console.error('Zone rejected:', body.error ?? response.statusText);
-    }
-  });
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        onError(body.error ?? 'Failed to create restricted zone.');
+      }
+    })
+    .catch(() => onError('Failed to reach the server.'));
 }
 
 export function useZoneDrawing(map: L.Map | null) {
   const [isDrawing, setIsDrawing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const drawingRef = useRef(false);
   const pointsRef = useRef<L.LatLng[]>([]);
   const previewLineRef = useRef<L.Polyline | null>(null);
   const vertexLayerRef = useRef<L.LayerGroup | null>(null);
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showError = (message: string) => {
+    setError(message);
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = setTimeout(() => setError(null), ERROR_DISPLAY_MS);
+  };
 
   const clearPreview = () => {
     previewLineRef.current?.remove();
@@ -60,7 +72,7 @@ export function useZoneDrawing(map: L.Map | null) {
   const finalize = () => {
     const points = pointsRef.current;
     if (points.length >= MIN_VERTICES) {
-      postZone(points.map((p) => [p.lat, p.lng]));
+      postZone(points.map((p) => [p.lat, p.lng]), showError);
     }
     clearPreview();
     drawingRef.current = false;
@@ -96,6 +108,10 @@ export function useZoneDrawing(map: L.Map | null) {
         finalize();
         return;
       }
+      if (!isWithinSimulationRadius(e.latlng)) {
+        showError('Zone points must be inside the simulation radius around the base station.');
+        return;
+      }
       pointsRef.current.push(e.latlng);
       redrawPreview();
     };
@@ -129,5 +145,5 @@ export function useZoneDrawing(map: L.Map | null) {
     }
   }, [map, isDrawing]);
 
-  return { isDrawing, startDrawing, cancelDrawing };
+  return { isDrawing, startDrawing, cancelDrawing, error };
 }

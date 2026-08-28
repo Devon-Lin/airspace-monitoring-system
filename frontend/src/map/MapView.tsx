@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { BASE_STATION, SIMULATION_RADIUS_METERS } from '../config';
+import { buildBaseStationIcon, DRONE_PANE } from './icons';
 import { useAircraftLayer } from './useAircraftLayer';
 import { useZoneLayer } from './useZoneLayer';
 import { useZoneDrawing } from './useZoneDrawing';
@@ -13,7 +14,7 @@ import { usePatrolPathDrawing } from './usePatrolPathDrawing';
 import { InfoPanel } from '../ui/InfoPanel';
 import { ConnectionBanner } from '../ui/ConnectionBanner';
 import { StatusDashboard } from '../ui/StatusDashboard';
-import { buttonStyle, panelStyle, theme } from '../ui/theme';
+import { buttonStyle, panelStyle, theme, threatColors } from '../ui/theme';
 
 export function MapView() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -41,7 +42,14 @@ export function MapView() {
       maxZoom: 19,
     }).addTo(instance);
 
-    L.marker([BASE_STATION.lat, BASE_STATION.lng]).addTo(instance).bindPopup('Base Station');
+    // See DRONE_PANE's comment in icons.ts: without this, a monitoring
+    // drone and its target aircraft (nearly co-located) fight over click
+    // priority based on latitude alone.
+    instance.createPane(DRONE_PANE).style.zIndex = '610';
+
+    L.marker([BASE_STATION.lat, BASE_STATION.lng], { icon: buildBaseStationIcon(theme.accent) })
+      .addTo(instance)
+      .bindPopup('Base Station');
 
     const boundaryCircle = L.circle([BASE_STATION.lat, BASE_STATION.lng], {
       radius: SIMULATION_RADIUS_METERS,
@@ -99,6 +107,24 @@ export function MapView() {
       <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
         <StatusDashboard />
       </div>
+      {(zoneDrawing.error || patrolDrawing.error) && (
+        <div
+          style={{
+            ...panelStyle,
+            position: 'absolute',
+            bottom: 60,
+            right: 10,
+            zIndex: 1000,
+            padding: '8px 14px',
+            fontSize: 13,
+            border: `1px solid ${threatColors.critical}`,
+            color: threatColors.critical,
+            maxWidth: 320,
+          }}
+        >
+          {zoneDrawing.error || patrolDrawing.error}
+        </div>
+      )}
       <div style={{ position: 'absolute', bottom: 16, right: 10, zIndex: 1000, display: 'flex', gap: 8 }}>
         {zoneDrawing.isDrawing ? (
           <div style={drawingHintStyle}>

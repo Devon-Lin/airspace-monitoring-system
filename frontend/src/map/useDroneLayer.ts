@@ -3,7 +3,7 @@ import L from 'leaflet';
 import { useDroneStore } from '../state/droneStore';
 import { useSelectionStore } from '../state/selectionStore';
 import type { DroneStatus } from '../state/selectionStore';
-import { buildDroneIcon } from './icons';
+import { buildDroneIcon, DRONE_PANE } from './icons';
 import { droneAnimator } from './markerAnimator';
 import { droneStatusColors } from '../ui/theme';
 
@@ -47,7 +47,7 @@ export function useDroneLayer(map: L.Map | null) {
             existing.status = drone.status;
           }
         } else {
-          const marker = L.marker([drone.lat, drone.lng], { icon: buildDroneIcon(color) });
+          const marker = L.marker([drone.lat, drone.lng], { icon: buildDroneIcon(color), pane: DRONE_PANE });
           marker.on('click', () => useSelectionStore.getState().selectDrone(id));
           marker.addTo(layerGroup);
           markers.set(id, { marker, status: drone.status });
