@@ -1,6 +1,6 @@
 """In-process, in-memory simulation state.
 
-Design Analysis.md §4.3: state lives entirely in this single ASGI process
+docs/Design Analysis.md §4.3: state lives entirely in this single ASGI process
 (no Redis) — this only works correctly with a single Uvicorn worker, since
 multiple workers would each hold their own separate copy of this state.
 """

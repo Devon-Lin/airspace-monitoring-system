@@ -32,7 +32,7 @@ def env_bool(name, default=False):
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_bool('DEBUG', True)
+DEBUG = env_bool('DEBUG', False)
 
 ALLOWED_HOSTS = [
     h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()
@@ -93,7 +93,7 @@ ASGI_APPLICATION = 'config.asgi.application'
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 #
 # DATABASE_ENGINE=sqlite switches to SQLite for single-machine deployments
-# (see DEPLOYMENT.md) — the schema has no Postgres-specific features, so
+# (see docs/DEPLOYMENT.md) — the schema has no Postgres-specific features, so
 # this is a safe swap. Local dev is unaffected: this var is unset there, so
 # it falls through to the existing Postgres/Docker Compose setup.
 
@@ -118,7 +118,7 @@ else:
 
 
 # Simulation configuration
-# See Design Analysis.md §4 for the reasoning behind these defaults.
+# See docs/Design Analysis.md §4 for the reasoning behind these defaults.
 
 SIMULATION = {
     'INGEST_API_KEY': os.environ.get('INGEST_API_KEY', 'dev-ingest-key'),

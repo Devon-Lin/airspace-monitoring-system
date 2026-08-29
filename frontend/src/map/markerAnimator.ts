@@ -1,92 +1,69 @@
 import L from 'leaflet';
-import { applyMarkerTransform } from './icons';
-
-const DURATION_MS = 200; // matches the backend's 200ms tick interval
-
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t;
-}
-
-function lerpAngle(a: number, b: number, t: number) {
-  let diff = ((b - a + 180) % 360) - 180;
-  if (diff < -180) diff += 360;
-  return (a + diff * t + 360) % 360;
-}
+import { findRotatorElement, writeMarkerTransform, writeSelectionFilter } from './icons';
 
 interface Tracked {
   marker: L.Marker;
-  fromLat: number;
-  fromLng: number;
-  fromHeading: number;
-  toLat: number;
-  toLng: number;
-  toHeading: number;
-  start: number;
+  heading: number;
   selected: boolean;
+  iconElement: HTMLElement | null;
+  rotatorElement: HTMLElement | null;
 }
 
 /**
- * A single shared requestAnimationFrame loop that smoothly interpolates
- * many markers' positions/headings between server ticks, rather than
- * snapping instantly on each update (Design Analysis §5.1/§7.2). Computing
- * "from" as wherever the marker is *currently interpolated to* (not the
- * previous raw target) means a new update arriving early or late never
- * causes a visible jump.
+ * Applies each server update directly to a marker's position and heading,
+ * rather than smoothly interpolating between ticks with a shared
+ * requestAnimationFrame loop (the previous approach). Profiling showed that
+ * loop was a meaningful CPU cost on its own, purely from moving ~160
+ * markers 30x/second instead of the server's actual 5Hz update rate, even
+ * after removing every redundant DOM query/style write inside it. Snapping
+ * directly to each update trades a small, largely imperceptible per-tick
+ * "hop" for removing the animation loop's cost entirely.
  */
 class MarkerAnimator {
   private tracked = new Map<string, Tracked>();
-  private frameHandle: number | null = null;
 
   update(id: string, marker: L.Marker, lat: number, lng: number, heading: number, selected: boolean) {
-    const now = performance.now();
+    marker.setLatLng([lat, lng]);
+
     const existing = this.tracked.get(id);
-    let fromLat = lat;
-    let fromLng = lng;
-    let fromHeading = heading;
-    if (existing) {
-      const t = Math.min(1, (now - existing.start) / DURATION_MS);
-      fromLat = lerp(existing.fromLat, existing.toLat, t);
-      fromLng = lerp(existing.fromLng, existing.toLng, t);
-      fromHeading = lerpAngle(existing.fromHeading, existing.toHeading, t);
+    const currentIcon = marker.getElement() ?? null;
+    let iconElement = existing?.iconElement ?? null;
+    let rotatorElement = existing?.rotatorElement ?? null;
+    let iconSwapped = false;
+    // Leaflet's DivIcon reuses the same outer wrapper element across setIcon()
+    // calls, replacing only its innerHTML (see DivIcon.createIcon) — so a
+    // threat-level color change swaps out the inner `.rotator` node without
+    // the outer element's identity ever changing. Checking isConnected
+    // catches that case; the identity check alone would miss it and keep
+    // writing headings to the now-detached old rotator forever.
+    if (currentIcon !== iconElement || !rotatorElement?.isConnected) {
+      iconElement = currentIcon;
+      rotatorElement = findRotatorElement(marker);
+      iconSwapped = true;
     }
-    this.tracked.set(id, {
-      marker,
-      fromLat,
-      fromLng,
-      fromHeading,
-      toLat: lat,
-      toLng: lng,
-      toHeading: heading,
-      start: now,
-      selected,
-    });
-    this.ensureRunning();
+
+    if (rotatorElement) {
+      writeMarkerTransform(rotatorElement, heading, selected);
+      if (iconSwapped || !existing || existing.selected !== selected) {
+        writeSelectionFilter(rotatorElement, selected);
+      }
+    }
+
+    this.tracked.set(id, { marker, heading, selected, iconElement, rotatorElement });
   }
 
   setSelected(id: string, selected: boolean) {
     const entry = this.tracked.get(id);
-    if (entry) entry.selected = selected;
+    if (!entry || entry.selected === selected) return;
+    entry.selected = selected;
+    if (entry.rotatorElement) {
+      writeMarkerTransform(entry.rotatorElement, entry.heading, selected);
+      writeSelectionFilter(entry.rotatorElement, selected);
+    }
   }
 
   remove(id: string) {
     this.tracked.delete(id);
-  }
-
-  private ensureRunning() {
-    if (this.frameHandle !== null) return;
-    const step = () => {
-      const now = performance.now();
-      this.tracked.forEach((entry) => {
-        const t = Math.min(1, (now - entry.start) / DURATION_MS);
-        const lat = lerp(entry.fromLat, entry.toLat, t);
-        const lng = lerp(entry.fromLng, entry.toLng, t);
-        const heading = lerpAngle(entry.fromHeading, entry.toHeading, t);
-        entry.marker.setLatLng([lat, lng]);
-        applyMarkerTransform(entry.marker, heading, entry.selected);
-      });
-      this.frameHandle = this.tracked.size > 0 ? requestAnimationFrame(step) : null;
-    };
-    this.frameHandle = requestAnimationFrame(step);
   }
 }
 

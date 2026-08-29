@@ -2,7 +2,7 @@ from .models import PatrolPath
 
 
 class PatrolPathCache:
-    """Single shared drone patrol route (Design Analysis.md §4.1) — at most
+    """Single shared drone patrol route (docs/Design Analysis.md §4.1) — at most
     one row ever exists; setting a new one replaces it. Same lazy-load
     pattern as ZoneCache, for the same reason (avoid DB access in
     AppConfig.ready())."""

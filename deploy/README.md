@@ -1,6 +1,6 @@
 # Deploy configs
 
-Templates referenced by `DEPLOYMENT.md`. Replace `yourdomain.com` in
+Templates referenced by `docs/DEPLOYMENT.md`. Replace `yourdomain.com` in
 `Caddyfile` with the real domain, and adjust paths if you don't deploy to
 `/opt/mapviz`.
 

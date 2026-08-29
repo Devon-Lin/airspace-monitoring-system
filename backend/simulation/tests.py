@@ -80,7 +80,7 @@ class DroneDispatchTargetTests(TestCase):
         from .drones import DRONE_FLEET
 
         # DRONE_FLEET is a module-level singleton (in-memory sim state, by
-        # design — see Design Analysis.md §4.3), so it has to be reset by
+        # design — see docs/Design Analysis.md §4.3), so it has to be reset by
         # hand between tests or dispatches from one test leak into the next.
         DRONE_FLEET.drones.clear()
         DRONE_FLEET.no_drone_available_ids = set()

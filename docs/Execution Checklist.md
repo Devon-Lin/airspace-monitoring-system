@@ -164,3 +164,14 @@ Found and fixed after the app was live at linlabs.dev, driven by hands-on testin
 - [x] **Local verification pass.** Ran the full stack locally (Postgres via Docker, backend, generator, frontend dev server) rather than trusting the production deploy alone. Found and killed two leftover background processes from earlier in this session that had never been stopped, a duplicate backend and generator, one of which had been silently running at ~99% CPU for roughly four hours. Confirmed a fresh single instance of each reports the expected 150 aircraft with no duplication.
 
 All fixes deployed to https://linlabs.dev and verified live except where noted above as locally verified only.
+
+## Phase 15 — Client-Side CPU Investigation
+
+Live report: the deployed tab pinned the browser's renderer at 173% CPU. Fixed across four rounds:
+
+- [x] `markerAnimator.ts` re-queried `.rotator` via the DOM on every animation frame for every marker instead of caching it. Cached per-marker, re-resolved only on icon swap.
+- [x] Same loop rewrote `filter` every frame regardless of change, and ran at full display refresh rate instead of the data's 5Hz. Now only touches `filter` on an actual selection change, capped to 30fps.
+- [x] `useSelectedAircraftLayer.ts` rebuilt the full trajectory polyline (up to ~1,500 points) from scratch on every 1s poll. Now reuses the polyline via `setLatLngs()`.
+- [x] The pulsing selection ring combined `box-shadow` with an animated `transform: scale()`, forcing GPU repaint instead of compositing. Switched to `filter: drop-shadow`, found via a DevTools profile showing the JS main thread idle while CPU stayed high, pointing at GPU/compositor cost instead.
+
+Note: this session's browser automation runs tabs as `hidden`, which suspends `requestAnimationFrame`, so the animation loop couldn't be verified live through it.

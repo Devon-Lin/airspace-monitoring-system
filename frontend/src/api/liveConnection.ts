@@ -38,7 +38,7 @@ function applyEvent(event: ServerEvent) {
 }
 
 /**
- * Subscribe-then-snapshot reconnect protocol (Design Analysis.md §4.2):
+ * Subscribe-then-snapshot reconnect protocol (docs/Design Analysis.md §4.2):
  * open the stream first (buffering events), then fetch a snapshot, then
  * discard buffered events at or below the snapshot's sequence number and
  * apply the rest in order. EventSource's native auto-reconnect re-fires
@@ -50,12 +50,12 @@ export function startLiveConnection(): () => void {
 
   const source = new EventSource(`${API_BASE_URL}/stream/`);
 
-  source.onopen = () => {
-    useConnectionStore.getState().setConnected(true);
-    snapshotApplied = false;
-    buffered = [];
+  const fetchSnapshotAndApply = () => {
     fetch(`${API_BASE_URL}/snapshot/`)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error(`snapshot fetch failed: ${response.status}`);
+        return response.json();
+      })
       .then((snapshot: SnapshotResponse) => {
         useAircraftStore.getState().applySnapshot(snapshot.seq, snapshot.aircraft);
         useZoneStore.getState().applySnapshot(snapshot.zones);
@@ -66,7 +66,18 @@ export function startLiveConnection(): () => void {
         }
         buffered = [];
         snapshotApplied = true;
-      });
+      })
+      // The SSE connection can stay open even if this one fetch fails —
+      // without a retry, snapshotApplied would never flip to true and every
+      // subsequent tick event would buffer forever instead of applying.
+      .catch(() => setTimeout(fetchSnapshotAndApply, 1000));
+  };
+
+  source.onopen = () => {
+    useConnectionStore.getState().setConnected(true);
+    snapshotApplied = false;
+    buffered = [];
+    fetchSnapshotAndApply();
   };
 
   // Requirement 7.4: detect when the connection is lost, not just silently

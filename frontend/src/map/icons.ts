@@ -63,12 +63,28 @@ export function buildBaseStationIcon(color: string): L.DivIcon {
   return buildIcon(BASE_STATION_SVG, 26, color, 'base-station-icon');
 }
 
-/** Applies heading rotation (and optional selection emphasis) to a marker's
- * icon element directly, avoiding an icon rebuild on every tick. */
-export function applyMarkerTransform(marker: L.Marker, headingDeg: number, selected = false): void {
-  const element = marker.getElement()?.querySelector<HTMLElement>('.rotator');
-  if (!element) return;
+/** Looks up a marker's rotatable inner element. This does a DOM query, so
+ * callers running in a hot loop (the shared animation loop in
+ * markerAnimator.ts) should call this once per icon and cache the result,
+ * not on every frame. */
+export function findRotatorElement(marker: L.Marker): HTMLElement | null {
+  return marker.getElement()?.querySelector<HTMLElement>('.rotator') ?? null;
+}
+
+/** Applies heading rotation (and selection scale) directly to an
+ * already-resolved rotator element (see `findRotatorElement`). Pure style
+ * write, no DOM query, safe to call every animation frame — rotation
+ * genuinely changes every frame, so this one can't be skipped. */
+export function writeMarkerTransform(element: HTMLElement, headingDeg: number, selected = false): void {
   const scale = selected ? 1.6 : 1;
   element.style.transform = `rotate(${headingDeg}deg) scale(${scale})`;
+}
+
+/** Applies (or clears) the selection glow. `filter` is one of the more
+ * expensive CSS properties to touch, forcing compositor layer recomputation
+ * even when the value doesn't change, so callers running in the hot
+ * animation loop should only call this when `selected` actually flips,
+ * not on every frame for markers whose selection state is unchanged. */
+export function writeSelectionFilter(element: HTMLElement, selected: boolean): void {
   element.style.filter = selected ? 'drop-shadow(0 0 6px #fde047) drop-shadow(0 0 3px #fde047)' : 'none';
 }

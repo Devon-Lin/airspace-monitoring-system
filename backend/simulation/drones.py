@@ -1,13 +1,13 @@
 """Simulated autonomous drone fleet.
 
-Single-trigger, two-phase design (Design Analysis.md §4.1): idle drones fly a
+Single-trigger, two-phase design (docs/Design Analysis.md §4.1): idle drones fly a
 shared patrol path; on an aircraft breach, the nearest available drone
 leaves patrol, computes an intercept course (requirement 5.3's estimate ->
 distance -> intercept-time -> predicted-position -> heading -> move loop),
 then holds ~200m via a simple feedback loop once it arrives (5.4) and this
 also serves as the "shadow" behavior. It disengages and returns to base when
 the target leaves the zone, disappears, or a max monitor duration elapses
-(Design Analysis.md §4.1 recycle policy) — freeing it for the next breach.
+(docs/Design Analysis.md §4.1 recycle policy) — freeing it for the next breach.
 """
 
 import math

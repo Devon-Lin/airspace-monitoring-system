@@ -1,6 +1,6 @@
 """Geometry math for restricted zones: projection, breach detection, nearest-
 zone tracking, and time-to-entry. Uses Shapely + pyproj rather than PostGIS/
-GeoDjango — see Design Analysis.md §4.3.
+GeoDjango — see docs/Design Analysis.md §4.3.
 
 All real math happens in a local azimuthal-equidistant (AEQD) projection
 centered on the base station, so distances/intersections are accurate in
@@ -64,11 +64,26 @@ def clamp_turn(current_heading_deg: float, desired_heading_deg: float, max_turn_
     return (current_heading_deg + delta) % 360
 
 
-def validate_zone_coordinates(coordinates: list[list[float]]) -> str | None:
-    """Returns an error message, or None if the polygon is acceptable."""
-    if not coordinates or len(coordinates) < 3:
+def validate_zone_coordinates(coordinates) -> str | None:
+    """Returns an error message, or None if the polygon is acceptable.
+    Validates shape/type before touching Shapely — this endpoint is
+    unauthenticated, so a malformed payload must get a clean 400, not an
+    unhandled exception."""
+    if not isinstance(coordinates, list) or len(coordinates) < 3:
         return 'A restricted zone needs at least 3 points.'
-    polygon = build_zone_polygon(coordinates)
+    for point in coordinates:
+        if not isinstance(point, (list, tuple)) or len(point) != 2:
+            return 'Each point must be a [lat, lng] pair.'
+        lat, lng = point
+        if not isinstance(lat, (int, float)) or not isinstance(lng, (int, float)):
+            return 'Each point must be a [lat, lng] pair of numbers.'
+        if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+            return 'Coordinates must be valid latitude/longitude values.'
+
+    try:
+        polygon = build_zone_polygon(coordinates)
+    except Exception:
+        return 'Zone polygon is invalid.'
     if not polygon.is_valid:
         return 'Zone polygon is self-intersecting or otherwise invalid.'
     return None
@@ -99,7 +114,7 @@ def predicted_path_points(
 ) -> list[tuple[float, float]]:
     """Turn-rate-aware predicted path: a constant-turn-rate arc (or a
     straight line when turn_rate_deg_s is ~0) stepped forward in `step_s`
-    increments out to horizon_s. Design Analysis.md §4.1 — this is also what
+    increments out to horizon_s. docs/Design Analysis.md §4.1 — this is also what
     TTE is computed against, so TTE and the rendered predicted path always
     agree with each other."""
     points = [point_xy]
