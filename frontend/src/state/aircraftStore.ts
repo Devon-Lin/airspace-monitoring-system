@@ -33,6 +33,7 @@ export const useAircraftStore = create<AircraftStoreState>((set, get) => ({
   aircraft: new Map(),
 
   applySnapshot: (seq, aircraft) => {
+    if (seq <= get().seq) return; // stale or duplicate snapshot
     set({ seq, aircraft: new Map(aircraft.map((a) => [a.id, a])) });
   },
 

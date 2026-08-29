@@ -412,8 +412,14 @@ original requirement-by-requirement review, with each line's outcome noted.
 - Symbology reflects threat level (Normal/Warning/Critical). Done,
   color-coded (green/orange/red). Decided: color alone is sufficient, no
   additional visual weight needed.
-- Smooth transition between positions, no teleporting. Done
-  (`markerAnimator.ts`, a shared interpolation loop across all markers).
+- Smooth transition between positions, no teleporting. Initially done via
+  a shared RAF interpolation loop across all markers (`markerAnimator.ts`).
+  Later removed (see `Execution Checklist.md` Phase 15) once profiling
+  showed the loop itself was a meaningful CPU cost on its own, moving
+  ~160 markers 30x/second against the server's actual 5Hz update rate.
+  Markers now snap directly to each server tick instead. Deliberate
+  tradeoff: a small, largely imperceptible per-tick "hop" in exchange for
+  removing the loop's cost entirely.
 
 ### 5.2 Live map visualization
 - Clear visual distinction between aircraft, drones, zones, historical
@@ -508,7 +514,8 @@ work that followed. Recorded here for the history, not as an open list:
    plain circles. This also resolved the aircraft/drone visual-distinction
    requirement in §5.2.
 2. Smooth client-side position interpolation between ticks (no
-   teleporting).
+   teleporting). Later replaced by direct per-tick snapping for
+   performance; see §5.1 and `Execution Checklist.md` Phase 15.
 3. A visual highlight on the currently-selected aircraft's own marker.
 4. A visual marker on the historical trajectory polyline at the location
    of a detected gap.

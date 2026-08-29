@@ -175,3 +175,5 @@ Live report: the deployed tab pinned the browser's renderer at 173% CPU. Fixed a
 - [x] The pulsing selection ring combined `box-shadow` with an animated `transform: scale()`, forcing GPU repaint instead of compositing. Switched to `filter: drop-shadow`, found via a DevTools profile showing the JS main thread idle while CPU stayed high, pointing at GPU/compositor cost instead.
 
 Note: this session's browser automation runs tabs as `hidden`, which suspends `requestAnimationFrame`, so the animation loop couldn't be verified live through it.
+
+- [x] **Round 5, follow-up.** Profiling showed the interpolation loop itself was a meaningful CPU cost on its own, independent of the per-frame trimming above, purely from moving ~160 markers 30x/second instead of the server's actual 5Hz update rate. Removed the loop entirely: `markerAnimator.ts` now applies each server update directly to a marker's position and heading. This is a deliberate tradeoff, a small, largely imperceptible per-tick "hop" in exchange for removing the loop's cost entirely, and supersedes the §5.1 "no teleporting" outcome recorded in `Design Analysis.md`.

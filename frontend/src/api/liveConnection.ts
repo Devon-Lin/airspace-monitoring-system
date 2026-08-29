@@ -45,18 +45,26 @@ function applyEvent(event: ServerEvent) {
  * `onopen`, which re-runs this same handshake after any drop.
  */
 export function startLiveConnection(): () => void {
+  // Bumped on every onopen (initial connect and every auto-reconnect) so a
+  // fetch or retry left over from a previous connection cycle can detect
+  // it's been superseded and no-op instead of racing the current cycle for
+  // `buffered`/`snapshotApplied` — without this, a slow fetch from a stale
+  // reconnect could resolve after a newer one and silently roll back state
+  // applied since.
+  let generation = 0;
   let snapshotApplied = false;
   let buffered: ServerEvent[] = [];
 
   const source = new EventSource(`${API_BASE_URL}/stream/`);
 
-  const fetchSnapshotAndApply = () => {
+  const fetchSnapshotAndApply = (myGeneration: number) => {
     fetch(`${API_BASE_URL}/snapshot/`)
       .then((response) => {
         if (!response.ok) throw new Error(`snapshot fetch failed: ${response.status}`);
         return response.json();
       })
       .then((snapshot: SnapshotResponse) => {
+        if (myGeneration !== generation) return; // superseded by a later reconnect
         useAircraftStore.getState().applySnapshot(snapshot.seq, snapshot.aircraft);
         useZoneStore.getState().applySnapshot(snapshot.zones);
         useDroneStore.getState().applySnapshot(snapshot.drones);
@@ -70,14 +78,18 @@ export function startLiveConnection(): () => void {
       // The SSE connection can stay open even if this one fetch fails —
       // without a retry, snapshotApplied would never flip to true and every
       // subsequent tick event would buffer forever instead of applying.
-      .catch(() => setTimeout(fetchSnapshotAndApply, 1000));
+      .catch(() => {
+        if (myGeneration !== generation) return; // superseded by a later reconnect
+        setTimeout(() => fetchSnapshotAndApply(myGeneration), 1000);
+      });
   };
 
   source.onopen = () => {
     useConnectionStore.getState().setConnected(true);
+    generation += 1;
     snapshotApplied = false;
     buffered = [];
-    fetchSnapshotAndApply();
+    fetchSnapshotAndApply(generation);
   };
 
   // Requirement 7.4: detect when the connection is lost, not just silently
